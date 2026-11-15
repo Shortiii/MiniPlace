@@ -1,6 +1,6 @@
 # Advanced Database Systems Portfolio (MIT 8103)
 
-**Student:** <Oluwatoyin Oyelade> | **Student ID:** <301922865>
+**Student:** Oluwatoyin Oyelade | **Student ID:** 301922865
 **Session:** 2026/2027, First Semester Continuous Assessment
 
 ## Selected Case Study: MiniPlace
