@@ -1,6 +1,6 @@
 # Portfolio 5: Distributed and Cloud Database Systems
 
-**Case study:** NaijaMart / MiniPlace online store. **Database:** MongoDB replica set (3 nodes on one Windows machine) plus a written sharding design.
+**Case study:** MiniPlace online store. **Database:** MongoDB replica set (3 nodes on one Windows machine) plus a written sharding design.
 
 ## Files
 
@@ -10,55 +10,27 @@
 | `init-replica-set.js` | Replica set configuration (used by the script above) |
 | `status.js` | Prints which node is PRIMARY and which are SECONDARY |
 | `failover-demo.js` | Writes with `w: "majority"` through the replica-set connection |
-| `stop-node.ps1` | Kills the node on a port (simulates a crash) |
+| `stop-node.ps1` | Stops the node on a port (simulates a crash) |
 | `start-node.ps1` | Brings a stopped node back |
 | `screenshots/` | Evidence for each step |
 
-## Step-by-step experiment (screenshot every step)
+## What I did and what I saw
 
-Open PowerShell in this folder. If scripts are blocked, prefix with `powershell -ExecutionPolicy Bypass -File`.
+| Step | Command | Result |
+|---|---|---|
+| 1. Start the cluster | `setup-replica-set.ps1` | Three nodes started and `rs.initiate` returned `ok: 1` |
+| 2. Check the topology | `status.js` | 27117 was PRIMARY, 27118 and 27119 were SECONDARY |
+| 3. Write with majority | `failover-demo.js` (three times) | Each write was acknowledged by a majority; the document count went 1, 2, 3 and the primary was 27117 |
+| 4. Kill the primary | `stop-node.ps1 -Port 27117` | The primary process was stopped |
+| 5. Check the topology | `status.js` on port 27118 | 27117 showed as DOWN and **27119 had been elected the new PRIMARY** within seconds |
+| 6. Write during the outage | `failover-demo.js` | Still acknowledged by majority (document count 4), and the primary shown was 27119 |
+| 7. Bring the old primary back | `start-node.ps1 -Node 1` | 27117 rejoined as a **SECONDARY**; 27119 stayed PRIMARY |
+| 8. Remove the majority | Stopped 27118 and 27119, leaving only 27117, then ran `failover-demo.js` | The write **failed** with `MongoServerSelectionError` because no primary was available |
+| 9. Restore | `start-node.ps1 -Node 2` and `-Node 3` | The cluster returned to one PRIMARY and two SECONDARY |
 
-1. **Start the cluster**
-   ```
-   .\setup-replica-set.ps1
-   ```
-   Expect `"ok": 1` from `rs.initiate`. If `mongosh` is not recognised, add MongoDB Shell to your PATH or open a new terminal after installing it.
+**Limitation:** all three nodes run on one computer, so this demonstrates the replication and election mechanism, not protection against a real hardware or network failure.
 
-2. **See the topology**
-   ```
-   mongosh --port 27117 --quiet --file status.js
-   ```
-   Expect one PRIMARY and two SECONDARY. Note which port is the PRIMARY.
-
-3. **Write data with majority acknowledgement**
-   ```
-   mongosh "mongodb://localhost:27117,localhost:27118,localhost:27119/?replicaSet=rs0" --quiet --file failover-demo.js
-   ```
-   Run it two or three times so there are a few documents.
-
-4. **Kill the PRIMARY** (use the port from step 2)
-   ```
-   .\stop-node.ps1 -Port 27117
-   ```
-
-5. **Watch the failover** (use a port that is still running, for example 27118)
-   ```
-   mongosh --port 27118 --quiet --file status.js
-   ```
-   Within about 10-15 seconds one SECONDARY is elected the new PRIMARY, and the stopped node shows as DOWN.
-
-6. **Keep writing during the outage**
-   Run the step 3 command again. It still succeeds, because 2 of 3 nodes is still a majority.
-
-7. **Bring the old node back**
-   ```
-   .\start-node.ps1 -Node 1
-   ```
-   Check `status.js` again: the old primary rejoins as a SECONDARY and catches up on the writes it missed.
-
-8. **Optional extra evidence (consistency):** kill a second node as well, so only 1 of 3 remains. Run step 3 again. The write **cannot** be acknowledged with `w: "majority"` (it times out), and no node becomes primary, because there is no majority. This shows the system choosing consistency over availability.
-
-## How replication works (explain in your own words)
+## How replication works
 
 - One **primary** accepts all writes and records them in the **oplog**.
 - **Secondaries** copy the oplog and apply the same changes.
@@ -66,14 +38,14 @@ Open PowerShell in this folder. If scripts are blocked, prefix with `powershell 
 - **Write concern** controls how many nodes must confirm a write: `w: 1` (primary only, fast but can lose data if the primary dies before copying) versus `w: "majority"` (safer, slightly slower).
 - **Read preference** controls where reads go: `primary` (always fresh) versus `secondary` (spreads load but may return slightly stale data).
 
-## Consistency and availability (CAP) for NaijaMart
+## Consistency and availability (CAP) for MiniPlace
 
-During a network partition a distributed system cannot guarantee both consistency and availability.
+During a failure a distributed system cannot guarantee both consistency and availability.
 
-- With `w: "majority"` and reads from the primary, MongoDB behaves as **CP**: the side of the partition that cannot reach a majority stops accepting writes (it briefly gives up availability) so that data never diverges.
+- With `w: "majority"` and reads from the primary, MongoDB behaves as **CP**: when there is no majority (step 8), it refuses writes so that data never diverges, giving up availability.
 - Reads from secondaries give **eventual consistency**: fast and available, but a customer might briefly see old stock numbers.
 
-Which should NaijaMart choose?
+Which should MiniPlace choose?
 - **Orders, payments and stock deduction:** consistency matters most. Use `majority` writes and primary reads (and in practice keep the SQL database as the source of truth for money).
 - **Product browsing and search:** availability and speed matter more. Reading from secondaries is acceptable, even if a description is a few seconds stale.
 
@@ -92,7 +64,7 @@ Replication copies the **same** data to several nodes (availability). Sharding *
 | `customer_id` (hashed) | Good | Many distinct values, spread evenly, and one customer's orders stay together |
 | `{ customer_id: 1, order_date: 1 }` (compound) | Good | Targeted queries per customer and still well distributed |
 
-Recommended: `sh.shardCollection("naijamart.orders", { customer_id: "hashed" })`.
+Recommended: `sh.shardCollection("miniplace.orders", { customer_id: "hashed" })`.
 
 **Trade-off:** queries that do not include the shard key (for example "all orders last week") must be sent to every shard (scatter-gather), which is slower.
 
@@ -102,9 +74,20 @@ Recommended: `sh.shardCollection("naijamart.orders", { customer_id: "hashed" })`
 
 Managed services such as MongoDB Atlas run this same replica-set architecture for you (a free M0 cluster is a 3-node replica set) and add backups, monitoring and automatic failover. The local 3-node cluster here shows the mechanism that Atlas automates.
 
-## Reflection notes (write in your own words)
+## Reflection notes
 
-- What happened in step 5 and how long did the election take?
-- Why did writes still work in step 6 but fail in step 8?
-- What are the trade-offs between `w: 1` and `w: "majority"`?
-- Which parts of NaijaMart need strong consistency, and which can tolerate eventual consistency?
+**What happened when I stopped the primary, and how long did the election take?**
+
+When I stopped the primary on port 27117, the two remaining nodes elected 27119 as the new primary. By the time I checked the status a few seconds later, the election had already finished, and 27117 showed as DOWN.
+
+**Why did writes still work after one node was stopped, but fail when two were stopped?**
+
+With one node down, 2 of 3 nodes were still alive, which is a majority, so a primary could be elected and majority writes could be acknowledged. With two nodes down, only 1 of 3 was left. That is not a majority, so no primary could be elected and the write failed instead of being accepted without a majority.
+
+**What are the trade-offs between `w: 1` and `w: "majority"`?**
+
+`w: 1` is faster because only the primary has to confirm, but if the primary fails before copying the write, the data can be lost. `w: "majority"` is slower, since it waits for most nodes, but it guarantees the write survives a failover.
+
+**Which parts of MiniPlace need strong consistency, and which can tolerate eventual consistency?**
+
+Orders, payments and stock levels need strong consistency, because wrong or lost data means money or overselling problems. Product browsing and descriptions can tolerate eventual consistency, because a slightly stale page does little harm.
