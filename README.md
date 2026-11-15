@@ -30,6 +30,7 @@ advanced-database-portfolio/
 ├── portfolio-3-transactions-concurrency/
 ├── portfolio-4-nosql/
 ├── portfolio-5-distributed-cloud/
+├── DOCUMENTATION.md
 └── README.md
 ```
 
@@ -37,17 +38,18 @@ advanced-database-portfolio/
 
 | Portfolio | Status |
 |---|---|
-| 1. Database design and modelling | In progress |
-| 2. Query processing and optimisation | Not started |
-| 3. Transactions and concurrency | Not started |
-| 4. NoSQL and advanced data models | Not started |
-| 5. Distributed and cloud database | Not started |
+| 1. Database design and modelling | Complete |
+| 2. Query processing and optimisation | Complete |
+| 3. Transactions and concurrency | Complete |
+| 4. NoSQL and advanced data models | Complete |
+| 5. Distributed and cloud database | Complete |
+| Final documentation | See `DOCUMENTATION.md` |
 
 ## AI Use Declaration
 
 - **AI tool used:** Claude (Anthropic)
-- **Used for:** <e.g. brainstorming the case study, drafting initial schema, explaining concepts>
-- **How I verified it:** <e.g. ran every script myself, checked output, corrected errors, can explain each design choice>
+- **Used for:** choosing the case study, drafting the SQL and MongoDB scripts and README templates, explaining concepts, helping fix setup problems, and drafting the first wording of my analysis and reflection notes.
+- **How I verified it:** I ran every script myself on my own machine, took all screenshots from my own runs, fixed errors as they came up, reviewed and edited the drafted wording, and can explain each design choice. The full declaration is in `DOCUMENTATION.md`.
 
 ## References
 
