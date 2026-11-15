@@ -3,7 +3,7 @@
 **Name:** Oluwatoyin Oyelade
 **Student ID:** 301922865
 **Case study:** MiniPlace
-**GitHub repository:** https://github.com/Shortiii/MiniPlace (private; assessor access granted: [yes/no])
+**GitHub repository:** https://github.com/Shortiii/MiniPlace 
 
 ---
 
